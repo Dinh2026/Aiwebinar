@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, Plus, Edit, Trash2, Users, Video, BarChart3 } from 'lucide-react';
+import { Shield, Plus, Trash2, Users, Video, BarChart3, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 
@@ -14,17 +14,14 @@ export default function AdminPage() {
 
   const loadData = async () => {
     try {
-      const [saRes, statsRes] = await Promise.all([
-        api.get('/admin/sub-accounts'),
-        api.get('/admin/stats'),
-      ]);
-      setSubAccounts(saRes.data.subAccounts || []);
-      setStats(statsRes.data);
+      const [sa, st] = await Promise.all([api.get('/admin/sub-accounts'), api.get('/admin/stats')]);
+      setSubAccounts(sa.data.subAccounts || []);
+      setStats(st.data);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
 
-  const createSubAccount = async (e) => {
+  const create = async (e) => {
     e.preventDefault();
     if (!form.fullName || !form.email || !form.password || !form.name) return toast.error('Điền đầy đủ thông tin');
     try {
@@ -36,91 +33,95 @@ export default function AdminPage() {
     } catch (err) { toast.error(err.response?.data?.error || 'Lỗi tạo'); }
   };
 
-  const deleteSubAccount = async (id) => {
+  const del = async (id) => {
     if (!confirm('Xóa sub-account này?')) return;
-    try {
-      await api.delete(`/admin/sub-accounts/${id}`);
-      toast.success('Đã xóa');
-      loadData();
-    } catch (err) { toast.error('Lỗi xóa'); }
+    try { await api.delete(`/admin/sub-accounts/${id}`); toast.success('Đã xóa'); loadData(); }
+    catch (err) { toast.error('Lỗi xóa'); }
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      <div className="flex items-center justify-between">
+    <div className="animate-fadeIn">
+      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3"><Shield size={28} className="text-indigo-400" /> Quản trị hệ thống</h1>
-          <p className="text-gray-400 mt-1">Super Admin — Quản lý sub-accounts</p>
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Shield size={22} style={{ color: 'var(--accent-primary-light)' }} /> Quản trị hệ thống
+          </h1>
+          <p className="page-subtitle">Super Admin — Quản lý sub-accounts & platform</p>
         </div>
-        <button onClick={() => setShowCreate(!showCreate)} className="btn-primary flex items-center gap-2">
-          <Plus size={18} /> Tạo Sub-Account
-        </button>
+        <button onClick={() => setShowCreate(!showCreate)} className="btn btn-primary"><Plus size={15} /> Tạo Sub-Account</button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14, marginBottom: 24 }}>
         {[
-          { label: 'Sub-Accounts', value: stats.totalSubAccounts || 0, icon: Users },
-          { label: 'Webinars', value: stats.totalWebinars || 0, icon: Video },
-          { label: 'Attendees', value: stats.totalAttendees || 0, icon: Users },
-          { label: 'Sessions', value: stats.totalSessions || 0, icon: BarChart3 },
+          { l: 'Sub-Accounts', v: stats.totalSubAccounts || 0, icon: Users },
+          { l: 'Webinars', v: stats.totalWebinars || 0, icon: Video },
+          { l: 'Attendees', v: stats.totalAttendees || 0, icon: Users },
+          { l: 'Sessions', v: stats.totalSessions || 0, icon: BarChart3 },
         ].map((s, i) => (
-          <div key={i} className="stat-card">
-            <s.icon size={18} className="text-indigo-400 mb-2" />
-            <p className="text-2xl font-bold text-white">{s.value}</p>
-            <p className="text-xs text-gray-400">{s.label}</p>
+          <div key={i} className="stat-card" style={{ padding: 18 }}>
+            <s.icon size={16} style={{ color: 'var(--accent-primary-light)', marginBottom: 8 }} />
+            <p style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{s.v}</p>
+            <p style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>{s.l}</p>
           </div>
         ))}
       </div>
 
       {/* Create Form */}
       {showCreate && (
-        <form onSubmit={createSubAccount} className="glass-card p-6 space-y-4">
-          <h3 className="text-lg font-bold text-white">Tạo Sub-Account mới</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <input value={form.fullName} onChange={(e) => setForm(p=>({...p, fullName: e.target.value}))} placeholder="Họ tên chủ tài khoản" className="input-field" />
-            <input value={form.email} onChange={(e) => setForm(p=>({...p, email: e.target.value}))} placeholder="Email" type="email" className="input-field" />
-            <input value={form.password} onChange={(e) => setForm(p=>({...p, password: e.target.value}))} placeholder="Mật khẩu" type="password" className="input-field" />
-            <input value={form.name} onChange={(e) => setForm(p=>({...p, name: e.target.value}))} placeholder="Tên workspace" className="input-field" />
-            <input value={form.domainPrefix} onChange={(e) => setForm(p=>({...p, domainPrefix: e.target.value}))} placeholder="Domain prefix" className="input-field" />
-            <select value={form.plan} onChange={(e) => setForm(p=>({...p, plan: e.target.value}))} className="input-field">
-              <option value="pro">Pro</option><option value="enterprise">Enterprise</option>
-            </select>
+        <form onSubmit={create} className="glass-card" style={{ padding: 24, marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>Tạo Sub-Account mới</h3>
+            <button type="button" onClick={() => setShowCreate(false)} className="btn-icon"><X size={16} /></button>
           </div>
-          <div className="flex gap-3">
-            <button type="submit" className="btn-primary">Tạo</button>
-            <button type="button" onClick={() => setShowCreate(false)} className="btn-secondary">Hủy</button>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 14, marginBottom: 16 }}>
+            <div><label className="input-label">Họ tên *</label><input value={form.fullName} onChange={(e) => setForm(p=>({...p, fullName: e.target.value}))} className="input-field" /></div>
+            <div><label className="input-label">Email *</label><input value={form.email} onChange={(e) => setForm(p=>({...p, email: e.target.value}))} type="email" className="input-field" /></div>
+            <div><label className="input-label">Mật khẩu *</label><input value={form.password} onChange={(e) => setForm(p=>({...p, password: e.target.value}))} type="password" className="input-field" /></div>
+            <div><label className="input-label">Tên workspace *</label><input value={form.name} onChange={(e) => setForm(p=>({...p, name: e.target.value}))} className="input-field" /></div>
+            <div><label className="input-label">Domain prefix</label><input value={form.domainPrefix} onChange={(e) => setForm(p=>({...p, domainPrefix: e.target.value}))} className="input-field" /></div>
+            <div><label className="input-label">Plan</label>
+              <select value={form.plan} onChange={(e) => setForm(p=>({...p, plan: e.target.value}))} className="input-field">
+                <option value="pro">Pro</option><option value="enterprise">Enterprise</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button type="submit" className="btn btn-primary">Tạo Sub-Account</button>
+            <button type="button" onClick={() => setShowCreate(false)} className="btn btn-secondary">Hủy</button>
           </div>
         </form>
       )}
 
-      {/* Sub-Accounts Table */}
-      <div className="glass-card overflow-hidden">
-        <table className="data-table">
-          <thead>
-            <tr><th>Tên</th><th>Chủ sở hữu</th><th>Email</th><th>Plan</th><th>Webinars</th><th>Attendees</th><th>Trạng thái</th><th></th></tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              Array(3).fill(0).map((_, i) => <tr key={i}>{Array(8).fill(0).map((_, j) => <td key={j}><div className="skeleton h-4" /></td>)}</tr>)
-            ) : subAccounts.length === 0 ? (
-              <tr><td colSpan={8} className="text-center py-12 text-gray-500">Chưa có sub-account</td></tr>
-            ) : (
-              subAccounts.map((sa) => (
+      {/* Table */}
+      <div className="glass-card" style={{ overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table className="data-table">
+            <thead><tr><th>Workspace</th><th>Chủ sở hữu</th><th>Email</th><th>Plan</th><th>Webinars</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              {loading ? (
+                Array(3).fill(0).map((_, i) => <tr key={i}>{Array(7).fill(0).map((_, j) => <td key={j}><div className="skeleton" style={{ height: 16 }} /></td>)}</tr>)
+              ) : subAccounts.length === 0 ? (
+                <tr><td colSpan={7}>
+                  <div className="empty-state">
+                    <div className="empty-state-icon"><Users size={24} style={{ color: 'var(--text-muted)' }} /></div>
+                    <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>Chưa có sub-account</p>
+                  </div>
+                </td></tr>
+              ) : subAccounts.map(sa => (
                 <tr key={sa.id}>
-                  <td className="font-semibold text-white">{sa.name}</td>
-                  <td className="text-gray-300">{sa.owner_name}</td>
-                  <td className="text-gray-400">{sa.owner_email}</td>
+                  <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{sa.name}</td>
+                  <td style={{ color: 'var(--text-secondary)' }}>{sa.owner_name}</td>
+                  <td style={{ color: 'var(--text-muted)' }}>{sa.owner_email}</td>
                   <td><span className="badge badge-primary">{sa.plan}</span></td>
-                  <td className="text-gray-300">{sa.webinar_count || 0}</td>
-                  <td className="text-gray-300">{sa.attendee_count || 0}</td>
-                  <td><span className={`badge ${sa.status === 'active' ? 'badge-success' : 'badge-danger'}`}>{sa.status}</span></td>
-                  <td><button onClick={() => deleteSubAccount(sa.id)} className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg"><Trash2 size={16} /></button></td>
+                  <td style={{ color: 'var(--text-secondary)' }}>{sa.webinar_count || 0}</td>
+                  <td><span className={`badge badge-dot ${sa.status === 'active' ? 'badge-success' : 'badge-danger'}`}>{sa.status}</span></td>
+                  <td><button onClick={() => del(sa.id)} className="btn-icon" style={{ color: 'var(--accent-rose)' }}><Trash2 size={14} /></button></td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

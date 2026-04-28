@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, Upload, Video, Calendar, MessageSquare, Bell, Rocket } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Upload, Video, Calendar, MessageSquare, Bell, Rocket, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 
@@ -8,7 +8,7 @@ const STEPS = [
   { icon: Video, label: 'Thông tin' },
   { icon: Video, label: 'Video' },
   { icon: Calendar, label: 'Lịch phát' },
-  { icon: MessageSquare, label: 'Chat Script' },
+  { icon: MessageSquare, label: 'Chat' },
   { icon: Bell, label: 'Seeding' },
   { icon: Rocket, label: 'Xuất bản' },
 ];
@@ -27,9 +27,7 @@ export default function WebinarWizard() {
   const [seedFile, setSeedFile] = useState(null);
   const [webinarId, setWebinarId] = useState(id || null);
 
-  useEffect(() => {
-    if (id) loadWebinar();
-  }, [id]);
+  useEffect(() => { if (id) loadWebinar(); }, [id]);
 
   const loadWebinar = async () => {
     try {
@@ -45,53 +43,33 @@ export default function WebinarWizard() {
     } catch (err) { toast.error('Lỗi tải webinar'); }
   };
 
-  const updateField = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+  const u = (field, value) => setForm(p => ({ ...p, [field]: value }));
 
   const saveWebinar = async () => {
     setLoading(true);
     try {
-      if (webinarId) {
-        await api.patch(`/webinars/${webinarId}`, form);
-      } else {
-        const { data } = await api.post('/webinars', form);
-        setWebinarId(data.webinar.id);
-      }
+      if (webinarId) { await api.patch(`/webinars/${webinarId}`, form); }
+      else { const { data } = await api.post('/webinars', form); setWebinarId(data.webinar.id); }
       toast.success('Đã lưu!');
       return true;
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Lỗi lưu');
-      return false;
-    } finally { setLoading(false); }
+    } catch (err) { toast.error(err.response?.data?.error || 'Lỗi lưu'); return false; }
+    finally { setLoading(false); }
   };
 
-  const uploadChat = async () => {
-    if (!chatFile || !webinarId) return;
-    const fd = new FormData();
-    fd.append('file', chatFile);
+  const uploadFile = async (type, file) => {
+    if (!file || !webinarId) return;
+    const fd = new FormData(); fd.append('file', file);
     try {
-      const { data } = await api.post(`/webinars/${webinarId}/chat-script`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      toast.success(`Upload ${data.count} tin nhắn thành công!`);
-    } catch (err) { toast.error('Lỗi upload chat script'); }
-  };
-
-  const uploadSeeding = async () => {
-    if (!seedFile || !webinarId) return;
-    const fd = new FormData();
-    fd.append('file', seedFile);
-    try {
-      const { data } = await api.post(`/webinars/${webinarId}/seeding-notifications`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      toast.success(`Upload ${data.count} notifications thành công!`);
-    } catch (err) { toast.error('Lỗi upload seeding'); }
+      const { data } = await api.post(`/webinars/${webinarId}/${type}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      toast.success(`Upload ${data.count} items thành công!`);
+    } catch (err) { toast.error(`Lỗi upload ${type}`); }
   };
 
   const nextStep = async () => {
     if (step === 0 && !form.title) return toast.error('Vui lòng nhập tiêu đề');
-    if (step <= 2) {
-      const ok = await saveWebinar();
-      if (!ok) return;
-    }
-    if (step === 3 && chatFile) await uploadChat();
-    if (step === 4 && seedFile) await uploadSeeding();
+    if (step <= 2) { if (!(await saveWebinar())) return; }
+    if (step === 3 && chatFile) await uploadFile('chat-script', chatFile);
+    if (step === 4 && seedFile) await uploadFile('seeding-notifications', seedFile);
     if (step < STEPS.length - 1) setStep(step + 1);
   };
 
@@ -99,175 +77,243 @@ export default function WebinarWizard() {
     setLoading(true);
     try {
       await api.patch(`/webinars/${webinarId}`, { ...form, status: 'published' });
-      toast.success('Webinar đã được xuất bản!');
+      toast.success('🚀 Webinar đã xuất bản!');
       navigate('/webinars');
     } catch (err) { toast.error('Lỗi xuất bản'); }
     finally { setLoading(false); }
   };
 
+  const FieldGroup = ({ label, children, hint }) => (
+    <div style={{ marginBottom: 18 }}>
+      <label className="input-label">{label}</label>
+      {children}
+      {hint && <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>{hint}</p>}
+    </div>
+  );
+
   return (
-    <div className="max-w-3xl mx-auto space-y-8 animate-fadeIn">
+    <div style={{ maxWidth: 720, margin: '0 auto' }} className="animate-fadeIn">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <button onClick={() => navigate('/webinars')} className="p-2 rounded-lg hover:bg-white/5 text-gray-400">
-          <ArrowLeft size={20} />
-        </button>
-        <h1 className="text-2xl font-bold text-white">{id ? 'Chỉnh sửa Webinar' : 'Tạo Webinar mới'}</h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+        <button onClick={() => navigate('/webinars')} className="btn-icon"><ArrowLeft size={18} /></button>
+        <h1 className="page-title" style={{ fontSize: 20 }}>{id ? 'Chỉnh sửa Webinar' : 'Tạo Webinar mới'}</h1>
       </div>
 
-      {/* Step Indicator */}
-      <div className="flex items-center justify-between">
+      {/* Step Progress */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+        marginBottom: 28, padding: '14px 16px',
+        background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)',
+        border: '1px solid var(--border-default)',
+      }}>
         {STEPS.map((s, i) => (
-          <div key={i} className="flex items-center">
-            <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-              i === step ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' :
-              i < step ? 'text-green-400' : 'text-gray-500'
-            }`} onClick={() => i < step && setStep(i)}>
-              {i < step ? <Check size={16} /> : <s.icon size={16} />}
-              <span className="hidden sm:inline">{s.label}</span>
-            </div>
-            {i < STEPS.length - 1 && <div className={`w-4 lg:w-8 h-px mx-1 ${i < step ? 'bg-green-500' : 'bg-gray-700'}`} />}
+          <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
+            <button
+              onClick={() => i < step && setStep(i)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '6px 12px', borderRadius: 'var(--radius-md)',
+                border: 'none', cursor: i <= step ? 'pointer' : 'default',
+                background: i === step ? 'rgba(99,102,241,0.12)' : 'transparent',
+                color: i < step ? 'var(--accent-emerald)' : i === step ? 'var(--accent-primary-light)' : 'var(--text-dim)',
+                fontSize: 12, fontWeight: i === step ? 700 : 500, fontFamily: 'inherit',
+                transition: 'all var(--transition-fast)',
+              }}
+            >
+              {i < step ? <Check size={13} /> : <s.icon size={13} />}
+              <span className="step-label-text">{s.label}</span>
+            </button>
+            {i < STEPS.length - 1 && (
+              <div style={{
+                width: 16, height: 1.5, margin: '0 2px',
+                background: i < step ? 'var(--accent-emerald)' : 'var(--border-default)',
+                borderRadius: 1,
+              }} />
+            )}
           </div>
         ))}
+        <style>{`@media(max-width:640px){.step-label-text{display:none}}`}</style>
       </div>
 
       {/* Step Content */}
-      <div className="glass-card p-8">
+      <div className="glass-card" style={{ padding: '28px 28px 24px' }}>
         {step === 0 && (
-          <div className="space-y-6">
-            <h2 className="text-xl font-bold text-white">Thông tin webinar</h2>
-            <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-2">Tiêu đề *</label>
-              <input value={form.title} onChange={(e) => updateField('title', e.target.value)} className="input-field" placeholder="Webinar của bạn..." />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-2">Mô tả</label>
-              <textarea value={form.description} onChange={(e) => updateField('description', e.target.value)} className="input-field min-h-[120px] resize-y" placeholder="Mô tả chi tiết..." />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-2">Display Threshold</label>
-              <input type="number" value={form.displayThreshold} onChange={(e) => updateField('displayThreshold', +e.target.value)} className="input-field w-32" />
-            </div>
+          <div>
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 20 }}>Thông tin webinar</h2>
+            <FieldGroup label="Tiêu đề *">
+              <input value={form.title} onChange={(e) => u('title', e.target.value)} className="input-field" placeholder="Tên webinar..." />
+            </FieldGroup>
+            <FieldGroup label="Mô tả">
+              <textarea value={form.description} onChange={(e) => u('description', e.target.value)}
+                className="input-field" style={{ minHeight: 100, resize: 'vertical' }} placeholder="Mô tả chi tiết..." />
+            </FieldGroup>
+            <FieldGroup label="Display Threshold" hint="Số người xem ảo hiển thị trong phòng">
+              <input type="number" value={form.displayThreshold} onChange={(e) => u('displayThreshold', +e.target.value)}
+                className="input-field" style={{ width: 140 }} />
+            </FieldGroup>
           </div>
         )}
 
         {step === 1 && (
-          <div className="space-y-6">
-            <h2 className="text-xl font-bold text-white">Link Video</h2>
-            <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-2">Loại video</label>
-              <div className="flex gap-3">
-                {['mp4', 'youtube', 'vimeo'].map((type) => (
-                  <button key={type} onClick={() => updateField('videoType', type)}
-                    className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                      form.videoType === type ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'bg-white/5 text-gray-400 border border-gray-700'
-                    }`}>
-                    {type.toUpperCase()}
+          <div>
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 20 }}>Link Video</h2>
+            <FieldGroup label="Loại video">
+              <div style={{ display: 'flex', gap: 8 }}>
+                {['mp4', 'youtube', 'vimeo'].map(t => (
+                  <button key={t} onClick={() => u('videoType', t)} style={{
+                    padding: '8px 18px', borderRadius: 'var(--radius-md)', border: 'none',
+                    fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                    background: form.videoType === t ? 'rgba(99,102,241,0.15)' : 'var(--bg-elevated)',
+                    color: form.videoType === t ? 'var(--accent-primary-light)' : 'var(--text-muted)',
+                    transition: 'all var(--transition-fast)',
+                  }}>
+                    {t.toUpperCase()}
                   </button>
                 ))}
               </div>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-2">URL Video *</label>
-              <input value={form.videoUrl} onChange={(e) => updateField('videoUrl', e.target.value)} className="input-field" placeholder="https://..." />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-2">Thời lượng (giây)</label>
-              <input type="number" value={form.durationSeconds} onChange={(e) => updateField('durationSeconds', +e.target.value)} className="input-field w-40" />
-            </div>
+            </FieldGroup>
+            <FieldGroup label="URL Video *">
+              <input value={form.videoUrl} onChange={(e) => u('videoUrl', e.target.value)} className="input-field" placeholder="https://..." />
+            </FieldGroup>
+            <FieldGroup label="Thời lượng (giây)">
+              <input type="number" value={form.durationSeconds} onChange={(e) => u('durationSeconds', +e.target.value)}
+                className="input-field" style={{ width: 160 }} />
+            </FieldGroup>
           </div>
         )}
 
         {step === 2 && (
-          <div className="space-y-6">
-            <h2 className="text-xl font-bold text-white">Lịch phát</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 20 }}>Lịch phát</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10, marginBottom: 20 }}>
               {[
-                { value: 'on_demand', label: 'On-Demand', desc: 'Xem bất cứ lúc nào' },
-                { value: 'recurring', label: 'Recurring', desc: 'Lặp theo lịch' },
-                { value: 'jit', label: 'Just-In-Time', desc: 'Bắt đầu sớm nhất' },
-              ].map((opt) => (
-                <button key={opt.value} onClick={() => updateField('scheduleType', opt.value)}
-                  className={`p-4 rounded-xl text-left transition-all ${
-                    form.scheduleType === opt.value ? 'bg-indigo-500/20 border-indigo-500/50 border' : 'bg-white/5 border border-gray-700'
-                  }`}>
-                  <p className={`text-sm font-bold ${form.scheduleType === opt.value ? 'text-indigo-400' : 'text-gray-300'}`}>{opt.label}</p>
-                  <p className="text-xs text-gray-500 mt-1">{opt.desc}</p>
+                { v: 'on_demand', l: 'On-Demand', d: 'Xem bất cứ lúc nào' },
+                { v: 'recurring', l: 'Recurring', d: 'Lặp theo lịch' },
+                { v: 'jit', l: 'Just-In-Time', d: 'Bắt đầu sớm nhất' },
+              ].map(o => (
+                <button key={o.v} onClick={() => u('scheduleType', o.v)} style={{
+                  padding: '16px', borderRadius: 'var(--radius-lg)', textAlign: 'left',
+                  border: form.scheduleType === o.v ? '1.5px solid var(--accent-primary)' : '1.5px solid var(--border-default)',
+                  background: form.scheduleType === o.v ? 'rgba(99,102,241,0.08)' : 'var(--bg-elevated)',
+                  cursor: 'pointer', transition: 'all var(--transition-fast)',
+                }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: form.scheduleType === o.v ? 'var(--accent-primary-light)' : 'var(--text-secondary)' }}>{o.l}</p>
+                  <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>{o.d}</p>
                 </button>
               ))}
             </div>
             {form.scheduleType === 'jit' && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-300 mb-2">JIT Window (phút)</label>
-                  <input type="number" value={form.jitWindow} onChange={(e) => updateField('jitWindow', +e.target.value)} className="input-field" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-300 mb-2">JIT Rounding (phút)</label>
-                  <input type="number" value={form.jitRounding} onChange={(e) => updateField('jitRounding', +e.target.value)} className="input-field" />
-                </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <FieldGroup label="JIT Window (phút)">
+                  <input type="number" value={form.jitWindow} onChange={(e) => u('jitWindow', +e.target.value)} className="input-field" />
+                </FieldGroup>
+                <FieldGroup label="JIT Rounding (phút)">
+                  <input type="number" value={form.jitRounding} onChange={(e) => u('jitRounding', +e.target.value)} className="input-field" />
+                </FieldGroup>
               </div>
             )}
           </div>
         )}
 
         {step === 3 && (
-          <div className="space-y-6">
-            <h2 className="text-xl font-bold text-white">Chat Script</h2>
-            <p className="text-gray-400 text-sm">Upload file Excel/CSV với các cột: time_offset, name, message, role, color, pin, pin_duration</p>
-            <label className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-600 rounded-2xl cursor-pointer hover:border-indigo-500/50 transition-colors">
-              <Upload size={32} className="text-gray-400 mb-2" />
-              <p className="text-sm text-gray-300 font-semibold">{chatFile ? chatFile.name : 'Chọn file Excel/CSV'}</p>
-              <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => setChatFile(e.target.files[0])} />
+          <div>
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>Chat Script</h2>
+            <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 20 }}>
+              Upload Excel/CSV: <code style={{ fontSize: 11, background: 'var(--bg-elevated)', padding: '2px 6px', borderRadius: 4 }}>time_offset, name, message, role, color, pin, pin_duration</code>
+            </p>
+            <label style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              padding: '40px 20px', border: '2px dashed var(--border-default)', borderRadius: 'var(--radius-lg)',
+              cursor: 'pointer', transition: 'all var(--transition-fast)',
+              background: chatFile ? 'rgba(99,102,241,0.05)' : 'transparent',
+            }}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-default)'}
+            >
+              <Upload size={28} style={{ color: chatFile ? 'var(--accent-primary-light)' : 'var(--text-dim)', marginBottom: 8 }} />
+              <p style={{ fontSize: 13, fontWeight: 600, color: chatFile ? 'var(--accent-primary-light)' : 'var(--text-muted)' }}>
+                {chatFile ? `✅ ${chatFile.name}` : 'Chọn file Excel/CSV'}
+              </p>
+              <input type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }} onChange={(e) => setChatFile(e.target.files[0])} />
             </label>
           </div>
         )}
 
         {step === 4 && (
-          <div className="space-y-6">
-            <h2 className="text-xl font-bold text-white">Seeding Notifications</h2>
-            <p className="text-gray-400 text-sm">Upload file Excel/CSV với các cột: time_offset, customer_name, content</p>
-            <label className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-600 rounded-2xl cursor-pointer hover:border-indigo-500/50 transition-colors">
-              <Upload size={32} className="text-gray-400 mb-2" />
-              <p className="text-sm text-gray-300 font-semibold">{seedFile ? seedFile.name : 'Chọn file Excel/CSV'}</p>
-              <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => setSeedFile(e.target.files[0])} />
+          <div>
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>Seeding Notifications</h2>
+            <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 20 }}>
+              Upload Excel/CSV: <code style={{ fontSize: 11, background: 'var(--bg-elevated)', padding: '2px 6px', borderRadius: 4 }}>time_offset, customer_name, content</code>
+            </p>
+            <label style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              padding: '40px 20px', border: '2px dashed var(--border-default)', borderRadius: 'var(--radius-lg)',
+              cursor: 'pointer', transition: 'all var(--transition-fast)',
+              background: seedFile ? 'rgba(99,102,241,0.05)' : 'transparent',
+            }}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-default)'}
+            >
+              <Upload size={28} style={{ color: seedFile ? 'var(--accent-primary-light)' : 'var(--text-dim)', marginBottom: 8 }} />
+              <p style={{ fontSize: 13, fontWeight: 600, color: seedFile ? 'var(--accent-primary-light)' : 'var(--text-muted)' }}>
+                {seedFile ? `✅ ${seedFile.name}` : 'Chọn file Excel/CSV'}
+              </p>
+              <input type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }} onChange={(e) => setSeedFile(e.target.files[0])} />
             </label>
           </div>
         )}
 
         {step === 5 && (
-          <div className="space-y-6 text-center">
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 inline-block">
-              <Rocket size={48} className="text-indigo-400" />
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              width: 64, height: 64, borderRadius: 'var(--radius-xl)', margin: '0 auto 16px',
+              background: 'var(--gradient-card)', border: '1px solid var(--border-subtle)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Rocket size={28} style={{ color: 'var(--accent-primary-light)' }} />
             </div>
-            <h2 className="text-2xl font-bold text-white">Sẵn sàng xuất bản!</h2>
-            <div className="text-left space-y-3 max-w-md mx-auto">
-              <div className="flex justify-between p-3 rounded-xl bg-white/5"><span className="text-gray-400">Tiêu đề</span><span className="text-white font-semibold">{form.title}</span></div>
-              <div className="flex justify-between p-3 rounded-xl bg-white/5"><span className="text-gray-400">Video</span><span className="text-white font-semibold">{form.videoType?.toUpperCase()}</span></div>
-              <div className="flex justify-between p-3 rounded-xl bg-white/5"><span className="text-gray-400">Lịch phát</span><span className="text-white font-semibold">{form.scheduleType}</span></div>
-              <div className="flex justify-between p-3 rounded-xl bg-white/5"><span className="text-gray-400">Chat Script</span><span className="text-white font-semibold">{chatFile ? '✅ Đã upload' : '❌ Chưa có'}</span></div>
-              <div className="flex justify-between p-3 rounded-xl bg-white/5"><span className="text-gray-400">Seeding</span><span className="text-white font-semibold">{seedFile ? '✅ Đã upload' : '❌ Chưa có'}</span></div>
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>Sẵn sàng xuất bản!</h2>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 24 }}>Xem lại thông tin trước khi publish</p>
+            <div style={{ textAlign: 'left', maxWidth: 400, margin: '0 auto' }}>
+              {[
+                ['Tiêu đề', form.title],
+                ['Video', form.videoType?.toUpperCase()],
+                ['Lịch phát', form.scheduleType],
+                ['Chat Script', chatFile ? '✅ Đã upload' : '⚪ Chưa có'],
+                ['Seeding', seedFile ? '✅ Đã upload' : '⚪ Chưa có'],
+              ].map(([label, val], i) => (
+                <div key={i} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '10px 14px', borderRadius: 'var(--radius-md)',
+                  background: i % 2 === 0 ? 'rgba(148,163,184,0.04)' : 'transparent',
+                }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{label}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{val}</span>
+                </div>
+              ))}
             </div>
           </div>
         )}
       </div>
 
-      {/* Navigation Buttons */}
-      <div className="flex items-center justify-between">
-        <button onClick={() => step > 0 ? setStep(step - 1) : navigate('/webinars')}
-          className="btn-secondary flex items-center gap-2">
-          <ArrowLeft size={16} /> {step > 0 ? 'Quay lại' : 'Hủy'}
+      {/* Nav Buttons */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
+        <button onClick={() => step > 0 ? setStep(step - 1) : navigate('/webinars')} className="btn btn-secondary">
+          <ArrowLeft size={15} /> {step > 0 ? 'Quay lại' : 'Hủy'}
         </button>
         {step < STEPS.length - 1 ? (
-          <button onClick={nextStep} disabled={loading} className="btn-primary flex items-center gap-2">
-            {loading ? 'Đang lưu...' : 'Tiếp theo'} <ArrowRight size={16} />
+          <button onClick={nextStep} disabled={loading} className="btn btn-primary">
+            {loading ? <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> : null}
+            {loading ? 'Đang lưu...' : 'Tiếp theo'} <ArrowRight size={15} />
           </button>
         ) : (
-          <button onClick={publish} disabled={loading} className="btn-primary flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-500">
-            {loading ? 'Đang xuất bản...' : '🚀 Xuất bản Webinar'}
+          <button onClick={publish} disabled={loading} className="btn btn-primary" style={{ background: 'linear-gradient(135deg, #34d399, #10b981)' }}>
+            {loading ? <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> : <Rocket size={15} />}
+            {loading ? 'Đang xuất bản...' : 'Xuất bản Webinar'}
           </button>
         )}
       </div>
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }

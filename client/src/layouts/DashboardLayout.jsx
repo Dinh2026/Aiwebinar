@@ -1,15 +1,33 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
-import { LayoutDashboard, Video, Users, BarChart3, Settings, Shield, LogOut, Menu, X, ChevronRight } from 'lucide-react';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import {
+  LayoutDashboard, Video, Users, BarChart3, Settings, Shield,
+  LogOut, Menu, X, ChevronLeft, ChevronRight, Zap
+} from 'lucide-react';
 
-const LOGO_URL = 'https://storage.googleapis.com/msgsndr/ZvTjUqBlrPvdA6D95vnu/media/68b44dd274ce1f13bc15f3ef.png';
+const LOGO_FULL = 'https://storage.googleapis.com/msgsndr/ZvTjUqBlrPvdA6D95vnu/media/68b44dd274ce1f13bc15f3ef.png';
+const AVATAR_DEFAULT = 'https://storage.googleapis.com/msgsndr/ZvTjUqBlrPvdA6D95vnu/media/68b45aa9ee3c10815523bcd0.jpeg';
 
 export default function DashboardLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isSuperAdmin = user.role === 'super_admin';
+
+  // Auto-collapse sidebar on smaller desktop screens
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1200 && window.innerWidth >= 1024) setCollapsed(true);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Close mobile menu on route change
+  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -23,94 +41,217 @@ export default function DashboardLayout() {
     { to: '/attendees', icon: Users, label: 'Người tham gia' },
     { to: '/analytics', icon: BarChart3, label: 'Analytics' },
     { to: '/settings', icon: Settings, label: 'Cài đặt' },
-    ...(isSuperAdmin ? [{ to: '/admin', icon: Shield, label: 'Quản trị' }] : []),
+    ...(isSuperAdmin ? [{ to: '/admin', icon: Shield, label: 'Quản trị hệ thống' }] : []),
   ];
 
-  const NavItem = ({ item }) => (
-    <NavLink
-      to={item.to}
-      end={item.end}
-      onClick={() => setMobileOpen(false)}
-      className={({ isActive }) =>
-        `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
-          isActive
-            ? 'bg-gradient-to-r from-indigo-500/20 to-purple-500/10 text-indigo-400 border border-indigo-500/30'
-            : 'text-gray-400 hover:text-white hover:bg-white/5'
-        }`
-      }
-    >
-      <item.icon size={20} />
-      {sidebarOpen && <span>{item.label}</span>}
-    </NavLink>
+  const SidebarContent = ({ isMobile = false }) => (
+    <div className="flex flex-col h-full">
+      {/* Logo */}
+      <div style={{
+        padding: collapsed && !isMobile ? '16px 12px' : '16px 20px',
+        borderBottom: '1px solid var(--border-default)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: collapsed && !isMobile ? 'center' : 'space-between',
+        minHeight: 60,
+      }}>
+        {(!collapsed || isMobile) ? (
+          <img src={LOGO_FULL} alt="Ai Webinar" style={{ height: 28, objectFit: 'contain' }} />
+        ) : (
+          <div style={{
+            width: 32, height: 32, borderRadius: 10,
+            background: 'var(--gradient-primary)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <Zap size={16} color="white" />
+          </div>
+        )}
+        {isMobile && (
+          <button onClick={() => setMobileOpen(false)} className="btn-icon">
+            <X size={20} />
+          </button>
+        )}
+      </div>
+
+      {/* Navigation */}
+      <nav style={{ flex: 1, padding: '12px 8px', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {navItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              style={({ isActive }) => ({
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: collapsed && !isMobile ? '10px 0' : '10px 14px',
+                justifyContent: collapsed && !isMobile ? 'center' : 'flex-start',
+                borderRadius: 'var(--radius-md)',
+                fontSize: 13.5,
+                fontWeight: isActive ? 700 : 500,
+                color: isActive ? 'var(--accent-primary-light)' : 'var(--text-muted)',
+                background: isActive ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                textDecoration: 'none',
+                transition: 'all var(--transition-fast)',
+                position: 'relative',
+              })}
+              onMouseEnter={(e) => {
+                if (!e.currentTarget.classList.contains('active'))
+                  e.currentTarget.style.background = 'rgba(99, 102, 241, 0.06)';
+              }}
+              onMouseLeave={(e) => {
+                const isActive = e.currentTarget.getAttribute('aria-current') === 'page';
+                if (!isActive) e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <item.icon size={18} style={{ flexShrink: 0 }} />
+              {(!collapsed || isMobile) && <span>{item.label}</span>}
+            </NavLink>
+          ))}
+        </div>
+      </nav>
+
+      {/* Collapse Toggle (desktop only) */}
+      {!isMobile && (
+        <div style={{ padding: '8px', borderTop: '1px solid var(--border-default)' }}>
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="btn-icon"
+            style={{ width: '100%', justifyContent: 'center', padding: 8 }}
+          >
+            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </button>
+        </div>
+      )}
+
+      {/* User */}
+      <div style={{
+        padding: collapsed && !isMobile ? '12px 8px' : '12px 16px',
+        borderTop: '1px solid var(--border-default)',
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          justifyContent: collapsed && !isMobile ? 'center' : 'flex-start',
+          marginBottom: 10,
+        }}>
+          <img
+            src={user.avatarUrl || AVATAR_DEFAULT}
+            alt=""
+            style={{
+              width: 34, height: 34, borderRadius: 10,
+              objectFit: 'cover',
+              border: '2px solid rgba(99, 102, 241, 0.3)',
+              flexShrink: 0,
+            }}
+          />
+          {(!collapsed || isMobile) && (
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user.fullName || 'User'}
+              </p>
+              <p style={{ fontSize: 11, color: 'var(--text-dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user.email}
+              </p>
+            </div>
+          )}
+        </div>
+        <button
+          onClick={handleLogout}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            width: '100%',
+            padding: '8px 12px',
+            borderRadius: 'var(--radius-md)',
+            border: 'none',
+            background: 'transparent',
+            color: 'var(--text-dim)',
+            cursor: 'pointer',
+            fontSize: 12.5,
+            fontFamily: 'inherit',
+            transition: 'all var(--transition-fast)',
+            justifyContent: collapsed && !isMobile ? 'center' : 'flex-start',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(251, 113, 133, 0.08)';
+            e.currentTarget.style.color = '#fb7185';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.color = 'var(--text-dim)';
+          }}
+        >
+          <LogOut size={15} />
+          {(!collapsed || isMobile) && <span>Đăng xuất</span>}
+        </button>
+      </div>
+    </div>
   );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0a0e1a]">
-      {/* Sidebar Desktop */}
-      <aside className={`hidden lg:flex flex-col border-r border-gray-800 bg-[#0d1117] transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-20'}`}>
-        {/* Logo */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-800">
-          {sidebarOpen && <img src={LOGO_URL} alt="Ai Webinar" className="h-8 object-contain" />}
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-lg hover:bg-white/5 text-gray-400">
-            {sidebarOpen ? <ChevronRight size={18} /> : <Menu size={18} />}
-          </button>
-        </div>
-
-        {/* Nav */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {navItems.map((item) => <NavItem key={item.to} item={item} />)}
-        </nav>
-
-        {/* User */}
-        <div className="p-4 border-t border-gray-800">
-          <div className="flex items-center gap-3 mb-3">
-            <img src={user.avatarUrl || 'https://storage.googleapis.com/msgsndr/ZvTjUqBlrPvdA6D95vnu/media/68b45aa9ee3c10815523bcd0.jpeg'} 
-                 alt="" className="w-9 h-9 rounded-full object-cover ring-2 ring-indigo-500/30" />
-            {sidebarOpen && (
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-white truncate">{user.fullName || 'User'}</p>
-                <p className="text-xs text-gray-500 truncate">{user.email}</p>
-              </div>
-            )}
-          </div>
-          <button onClick={handleLogout} className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors">
-            <LogOut size={16} />
-            {sidebarOpen && <span>Đăng xuất</span>}
-          </button>
-        </div>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-primary)' }}>
+      {/* Desktop Sidebar */}
+      <aside style={{
+        width: collapsed ? 68 : 250,
+        flexShrink: 0,
+        background: 'var(--bg-secondary)',
+        borderRight: '1px solid var(--border-default)',
+        transition: 'width var(--transition-normal)',
+        display: 'none',
+      }} className="sidebar-desktop">
+        <SidebarContent />
       </aside>
+      <style>{`@media(min-width:1024px){.sidebar-desktop{display:flex!important;flex-direction:column}}`}</style>
 
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 bg-[#0d1117] border-b border-gray-800">
-        <img src={LOGO_URL} alt="Ai Webinar" className="h-7" />
-        <button onClick={() => setMobileOpen(true)} className="p-2 text-gray-400"><Menu size={24} /></button>
+      <div className="mobile-header" style={{
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 40,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 16px', height: 56,
+        background: 'var(--bg-secondary)',
+        borderBottom: '1px solid var(--border-default)',
+      }}>
+        <img src={LOGO_FULL} alt="Ai Webinar" style={{ height: 24 }} />
+        <button onClick={() => setMobileOpen(true)} className="btn-icon"><Menu size={22} /></button>
       </div>
+      <style>{`@media(min-width:1024px){.mobile-header{display:none!important}}`}</style>
 
-      {/* Mobile Sidebar Overlay */}
+      {/* Mobile Overlay */}
       {mobileOpen && (
-        <div className="lg:hidden fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setMobileOpen(false)} />
-          <aside className="absolute left-0 top-0 bottom-0 w-72 bg-[#0d1117] p-4 flex flex-col animate-slideIn">
-            <div className="flex items-center justify-between mb-6">
-              <img src={LOGO_URL} alt="Ai Webinar" className="h-7" />
-              <button onClick={() => setMobileOpen(false)} className="p-2 text-gray-400"><X size={20} /></button>
-            </div>
-            <nav className="flex-1 space-y-1">
-              {navItems.map((item) => <NavItem key={item.to} item={item} />)}
-            </nav>
-            <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm text-red-400 hover:bg-red-500/10">
-              <LogOut size={18} /><span>Đăng xuất</span>
-            </button>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex' }}>
+          <div
+            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+            onClick={() => setMobileOpen(false)}
+          />
+          <aside
+            style={{
+              position: 'relative', width: 280,
+              background: 'var(--bg-secondary)',
+              borderRight: '1px solid var(--border-default)',
+              display: 'flex', flexDirection: 'column',
+            }}
+            className="animate-slideIn"
+          >
+            <SidebarContent isMobile={true} />
           </aside>
         </div>
       )}
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto lg:pt-0 pt-14">
-        <div className="p-6 lg:p-8 max-w-[1400px] mx-auto">
+      <main style={{
+        flex: 1, overflowY: 'auto', overflowX: 'hidden',
+        paddingTop: '0',
+      }} className="main-content">
+        <div style={{ padding: '28px 32px', maxWidth: 1340, margin: '0 auto' }}>
           <Outlet />
         </div>
       </main>
+      <style>{`@media(max-width:1023px){.main-content{padding-top:56px!important}}`}</style>
+      <style>{`@media(max-width:768px){.main-content>div{padding:20px 16px!important}}`}</style>
     </div>
   );
 }

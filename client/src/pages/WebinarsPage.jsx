@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Eye, Link2, Trash2, Edit, Video, Copy, ExternalLink } from 'lucide-react';
+import { Plus, Search, Trash2, Edit3, Video, Copy, ExternalLink, MoreVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 
@@ -13,105 +13,160 @@ export default function WebinarsPage() {
   useEffect(() => { loadWebinars(); }, []);
 
   const loadWebinars = async () => {
-    try {
-      const { data } = await api.get('/webinars');
-      setWebinars(data.webinars || []);
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+    try { const { data } = await api.get('/webinars'); setWebinars(data.webinars || []); }
+    catch (err) { console.error(err); }
+    finally { setLoading(false); }
   };
 
   const deleteWebinar = async (id) => {
     if (!confirm('Bạn có chắc muốn xóa webinar này?')) return;
-    try {
-      await api.delete(`/webinars/${id}`);
-      toast.success('Đã xóa webinar');
-      loadWebinars();
-    } catch (err) { toast.error('Lỗi xóa webinar'); }
+    try { await api.delete(`/webinars/${id}`); toast.success('Đã xóa webinar'); loadWebinars(); }
+    catch (err) { toast.error('Lỗi xóa webinar'); }
   };
 
   const copyShareLink = (roomCode) => {
-    const url = `${window.location.origin}/room/${roomCode}`;
-    navigator.clipboard.writeText(url);
-    toast.success('Đã copy link!');
+    navigator.clipboard.writeText(`${window.location.origin}/room/${roomCode}`);
+    toast.success('Đã copy link chia sẻ!');
   };
 
-  const filtered = webinars.filter(w => 
-    w.title?.toLowerCase().includes(search.toLowerCase()) || 
+  const filtered = webinars.filter(w =>
+    w.title?.toLowerCase().includes(search.toLowerCase()) ||
     w.room_code?.includes(search)
   );
 
   const scheduleLabels = { on_demand: 'On-Demand', recurring: 'Recurring', jit: 'Just-In-Time' };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div className="animate-fadeIn">
+      {/* Header */}
+      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 className="text-3xl font-bold text-white">Webinars</h1>
-          <p className="text-gray-400 mt-1">Quản lý tất cả webinar của bạn</p>
+          <h1 className="page-title">Webinars</h1>
+          <p className="page-subtitle">Quản lý tất cả webinar của bạn</p>
         </div>
-        <button onClick={() => navigate('/webinars/new')} className="btn-primary flex items-center gap-2">
-          <Plus size={18} /> Tạo Webinar
+        <button onClick={() => navigate('/webinars/new')} className="btn btn-primary">
+          <Plus size={16} /> Tạo Webinar
         </button>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm kiếm webinar..."
-          className="input-field pl-11" />
+      {/* Search Bar */}
+      <div style={{ position: 'relative', maxWidth: 380, marginBottom: 24 }}>
+        <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
+        <input
+          value={search} onChange={(e) => setSearch(e.target.value)}
+          placeholder="Tìm kiếm webinar..."
+          className="input-field"
+          style={{ paddingLeft: 40 }}
+        />
       </div>
 
-      {/* Webinar Grid */}
+      {/* Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1,2,3].map(i => <div key={i} className="skeleton h-64 rounded-2xl" />)}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
+          {[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: 280, borderRadius: 20 }} />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-20">
-          <Video size={48} className="mx-auto text-gray-600 mb-4" />
-          <p className="text-gray-400 text-lg">Chưa có webinar nào</p>
-          <button onClick={() => navigate('/webinars/new')} className="btn-primary mt-4">Tạo webinar đầu tiên</button>
+        <div className="empty-state glass-card" style={{ maxWidth: 460, margin: '0 auto' }}>
+          <div className="empty-state-icon"><Video size={28} style={{ color: 'var(--text-muted)' }} /></div>
+          <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
+            {search ? 'Không tìm thấy kết quả' : 'Chưa có webinar nào'}
+          </p>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>
+            {search ? 'Thử tìm kiếm với từ khóa khác' : 'Tạo webinar đầu tiên để bắt đầu'}
+          </p>
+          {!search && (
+            <button onClick={() => navigate('/webinars/new')} className="btn btn-primary">
+              <Plus size={14} /> Tạo webinar đầu tiên
+            </button>
+          )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
           {filtered.map((w) => (
-            <div key={w.id} className="glass-card overflow-hidden group hover:border-indigo-500/40 transition-all">
+            <div key={w.id} className="glass-card" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               {/* Thumbnail */}
-              <div className="h-40 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 relative flex items-center justify-center">
+              <div style={{
+                height: 160, position: 'relative',
+                background: 'linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(139,92,246,0.1) 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
                 {w.thumbnail_url ? (
-                  <img src={w.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                  <img src={w.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
-                  <Video size={40} className="text-indigo-400" />
+                  <Video size={36} style={{ color: 'var(--accent-primary)', opacity: 0.5 }} />
                 )}
-                <span className={`absolute top-3 right-3 badge ${w.status === 'published' ? 'badge-success' : 'badge-warning'}`}>
-                  {w.status === 'published' ? '● Live' : '○ Nháp'}
+                <span
+                  className={`badge badge-dot ${w.status === 'published' ? 'badge-success' : 'badge-warning'}`}
+                  style={{ position: 'absolute', top: 12, right: 12 }}
+                >
+                  {w.status === 'published' ? 'Live' : 'Nháp'}
                 </span>
               </div>
-              
-              {/* Content */}
-              <div className="p-5">
-                <h3 className="text-base font-bold text-white truncate">{w.title}</h3>
-                <p className="text-sm text-gray-400 mt-1 line-clamp-2">{w.description || 'Không có mô tả'}</p>
-                
-                <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
-                  <span className="badge badge-info text-xs">{scheduleLabels[w.schedule_type] || w.schedule_type}</span>
-                  <span>🔗 {w.room_code}</span>
-                </div>
 
-                {/* Actions */}
-                <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-800">
-                  <button onClick={() => navigate(`/webinars/${w.id}/edit`)} className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/5 transition-colors">
-                    <Edit size={14} /> Sửa
-                  </button>
-                  <button onClick={() => copyShareLink(w.room_code)} className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-sm font-semibold text-indigo-400 hover:bg-indigo-500/10 transition-colors">
-                    <Copy size={14} /> Copy Link
-                  </button>
-                  <a href={`/room/${w.room_code}`} target="_blank" className="p-2 rounded-lg text-cyan-400 hover:bg-cyan-500/10 transition-colors">
-                    <ExternalLink size={16} />
-                  </a>
-                  <button onClick={() => deleteWebinar(w.id)} className="p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors">
-                    <Trash2 size={16} />
-                  </button>
+              {/* Content */}
+              <div style={{ padding: '18px 20px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <h3 style={{
+                  fontSize: 15, fontWeight: 700, color: 'var(--text-primary)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4,
+                }}>
+                  {w.title}
+                </h3>
+                <p style={{
+                  fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 12,
+                  overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                }}>
+                  {w.description || 'Không có mô tả'}
+                </p>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 0, marginTop: 'auto' }}>
+                  <span className="badge badge-info" style={{ fontSize: 10.5 }}>{scheduleLabels[w.schedule_type] || w.schedule_type}</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>🔗 {w.room_code}</span>
                 </div>
+              </div>
+
+              {/* Actions */}
+              <div style={{
+                display: 'flex', alignItems: 'center', borderTop: '1px solid var(--border-default)',
+              }}>
+                <button
+                  onClick={() => navigate(`/webinars/${w.id}/edit`)}
+                  style={{
+                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    padding: '11px 0', fontSize: 12.5, fontWeight: 600,
+                    color: 'var(--text-muted)', background: 'transparent', border: 'none',
+                    cursor: 'pointer', transition: 'color var(--transition-fast)', fontFamily: 'inherit',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
+                  onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+                >
+                  <Edit3 size={13} /> Sửa
+                </button>
+                <div style={{ width: 1, height: 20, background: 'var(--border-default)' }} />
+                <button
+                  onClick={() => copyShareLink(w.room_code)}
+                  style={{
+                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    padding: '11px 0', fontSize: 12.5, fontWeight: 600,
+                    color: 'var(--accent-primary-light)', background: 'transparent', border: 'none',
+                    cursor: 'pointer', transition: 'opacity var(--transition-fast)', fontFamily: 'inherit',
+                  }}
+                >
+                  <Copy size={13} /> Copy Link
+                </button>
+                <div style={{ width: 1, height: 20, background: 'var(--border-default)' }} />
+                <a
+                  href={`/room/${w.room_code}`} target="_blank"
+                  className="btn-icon" style={{ padding: '11px 14px' }}
+                >
+                  <ExternalLink size={14} />
+                </a>
+                <div style={{ width: 1, height: 20, background: 'var(--border-default)' }} />
+                <button
+                  onClick={() => deleteWebinar(w.id)}
+                  className="btn-icon" style={{ padding: '11px 14px', color: 'var(--accent-rose)' }}
+                >
+                  <Trash2 size={14} />
+                </button>
               </div>
             </div>
           ))}

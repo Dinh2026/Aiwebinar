@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, LogIn, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 
@@ -21,71 +21,126 @@ export default function LoginPage() {
       const { data } = await api.post('/auth/login', { email, password });
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
-      toast.success('Đăng nhập thành công!');
+      toast.success(`Xin chào, ${data.user.fullName || 'bạn'}!`);
       navigate('/');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Đăng nhập thất bại');
+      toast.error(err.response?.data?.error || 'Email hoặc mật khẩu không đúng');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0e1a] px-4 relative overflow-hidden">
-      {/* Background Effects */}
-      <div className="absolute inset-0">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-cyan-500/5 rounded-full blur-3xl" />
-      </div>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--bg-primary)',
+      padding: 20,
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      {/* Ambient Lights */}
+      <div style={{
+        position: 'absolute', top: '15%', left: '20%',
+        width: 400, height: 400,
+        background: 'radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%)',
+        borderRadius: '50%', filter: 'blur(60px)', pointerEvents: 'none',
+      }} />
+      <div style={{
+        position: 'absolute', bottom: '15%', right: '20%',
+        width: 350, height: 350,
+        background: 'radial-gradient(circle, rgba(139,92,246,0.06) 0%, transparent 70%)',
+        borderRadius: '50%', filter: 'blur(60px)', pointerEvents: 'none',
+      }} />
 
-      <div className="relative z-10 w-full max-w-md">
+      <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 420 }} className="animate-fadeIn">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <img src={LOGO_URL} alt="Ai Webinar" className="h-12 mx-auto mb-4" />
-          <p className="text-gray-400 text-sm">Nền tảng Webinar tự động chuyên nghiệp</p>
+        <div style={{ textAlign: 'center', marginBottom: 36 }}>
+          <img src={LOGO_URL} alt="Ai Webinar" style={{ height: 36, margin: '0 auto 12px' }} />
+          <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>
+            Nền tảng Webinar tự động chuyên nghiệp
+          </p>
         </div>
 
         {/* Login Card */}
-        <div className="glass-card p-8">
-          <h1 className="text-2xl font-bold text-white mb-2">Đăng nhập</h1>
-          <p className="text-gray-400 text-sm mb-8">Nhập thông tin để truy cập dashboard</p>
+        <div style={{
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-2xl)',
+          padding: '36px 32px',
+          boxShadow: 'var(--shadow-lg)',
+        }}>
+          <div style={{ marginBottom: 28 }}>
+            <h1 style={{
+              fontSize: 22, fontWeight: 800,
+              color: 'var(--text-primary)',
+              letterSpacing: '-0.02em',
+            }}>
+              Đăng nhập
+            </h1>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>
+              Truy cập dashboard quản lý webinar
+            </p>
+          </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
-            <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-2">Email</label>
+          <form onSubmit={handleLogin}>
+            <div style={{ marginBottom: 18 }}>
+              <label className="input-label">Email</label>
               <input
                 type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                className="input-field" placeholder="your@email.com" autoFocus
+                className="input-field" placeholder="your@email.com" autoFocus autoComplete="email"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-2">Mật khẩu</label>
-              <div className="relative">
+            <div style={{ marginBottom: 24 }}>
+              <label className="input-label">Mật khẩu</label>
+              <div style={{ position: 'relative' }}>
                 <input
-                  type={showPw ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
-                  className="input-field pr-12" placeholder="••••••••"
+                  type={showPw ? 'text' : 'password'} value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input-field"
+                  style={{ paddingRight: 44 }}
+                  placeholder="••••••••"
+                  autoComplete="current-password"
                 />
-                <button type="button" onClick={() => setShowPw(!showPw)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white">
-                  {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                <button
+                  type="button" onClick={() => setShowPw(!showPw)}
+                  className="btn-icon"
+                  style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)' }}
+                >
+                  {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>
 
-            <button type="submit" disabled={loading}
-              className="btn-primary w-full flex items-center justify-center gap-2 py-3 text-base disabled:opacity-50">
-              {loading ? <Loader2 size={20} className="animate-spin" /> : <LogIn size={20} />}
-              {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
+            <button
+              type="submit" disabled={loading}
+              className="btn btn-primary"
+              style={{
+                width: '100%', padding: '12px 0', fontSize: 14,
+                fontWeight: 700, borderRadius: 'var(--radius-md)',
+              }}
+            >
+              {loading ? (
+                <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
+              ) : (
+                <>Đăng nhập <ArrowRight size={16} /></>
+              )}
             </button>
           </form>
         </div>
 
-        <p className="text-center text-gray-600 text-xs mt-6">
+        <p style={{
+          textAlign: 'center', color: 'var(--text-dim)',
+          fontSize: 11.5, marginTop: 24,
+        }}>
           © 2026 The Solo Shop — Ai Webinar Platform
         </p>
       </div>
+
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }
