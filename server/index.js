@@ -61,7 +61,7 @@ const limiter = rateLimit({
   max: 1000,
   message: { error: 'Quá nhiều request, vui lòng thử lại sau.' }
 });
-app.use('/api/', limiter);
+app.use('/api', limiter);
 
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -93,7 +93,9 @@ app.get('/api/health', (req, res) => {
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../client/dist')));
-  app.get('*', (req, res) => {
+  // Express 5 compatible catch-all for SPA
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/')) return next();
     res.sendFile(path.join(__dirname, '../client/dist/index.html'));
   });
 }
