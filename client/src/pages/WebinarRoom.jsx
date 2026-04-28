@@ -102,7 +102,22 @@ export default function WebinarRoom() {
   }, [attendee, webinar]);
 
   const handlePlay = () => {
-    if (videoRef.current) { videoRef.current.play(); setPlaying(true); trackEvent('video_started'); }
+    if (!videoRef.current) return;
+    const playPromise = videoRef.current.play();
+    if (playPromise !== undefined) {
+      playPromise.then(() => {
+        setPlaying(true);
+        trackEvent('video_started');
+      }).catch((err) => {
+        console.warn('Autoplay blocked, retrying muted:', err);
+        videoRef.current.muted = true;
+        videoRef.current.play().then(() => {
+          setPlaying(true);
+          setMuted(true);
+          trackEvent('video_started');
+        }).catch(e => console.error('Video play failed:', e));
+      });
+    }
   };
 
   const sendMsg = () => {
@@ -222,18 +237,18 @@ export default function WebinarRoom() {
           <video
             ref={videoRef}
             src={getVideoSrc()}
-            crossOrigin="anonymous"
             style={{ width: '100%', height: '100%', objectFit: 'contain' }}
             playsInline
+            preload="auto"
             onEnded={() => trackEvent('webinar_completed')}
-            controls={playing}
+            controls
           />
         ) : (
           <iframe src={getVideoSrc()} style={{ width: '100%', height: '100%', border: 'none' }} allow="autoplay; fullscreen" allowFullScreen />
         )}
 
         {/* Play overlay */}
-        {!playing && webinar?.video_type === 'mp4' && (
+        {(!playing && webinar?.video_type === 'mp4') && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)', cursor: 'pointer' }} onClick={handlePlay}>
             <div style={{
               width: 80, height: 80, borderRadius: '50%',
