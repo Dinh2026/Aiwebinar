@@ -2,8 +2,9 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import {
   LayoutDashboard, Video, Users, BarChart3, Settings, Shield,
-  LogOut, Menu, X, ChevronLeft, ChevronRight, Zap
+  LogOut, Menu, X, ChevronLeft, ChevronRight, Zap, Sun, Moon
 } from 'lucide-react';
+import { useTheme } from '../lib/ThemeContext';
 
 const LOGO_FULL = 'https://storage.googleapis.com/msgsndr/ZvTjUqBlrPvdA6D95vnu/media/68b44dd274ce1f13bc15f3ef.png';
 const AVATAR_DEFAULT = 'https://storage.googleapis.com/msgsndr/ZvTjUqBlrPvdA6D95vnu/media/68b45aa9ee3c10815523bcd0.jpeg';
@@ -13,10 +14,11 @@ export default function DashboardLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { theme, toggle } = useTheme();
+  const isDark = theme === 'dark';
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isSuperAdmin = user.role === 'super_admin';
 
-  // Auto-collapse sidebar on smaller desktop screens
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 1200 && window.innerWidth >= 1024) setCollapsed(true);
@@ -26,7 +28,6 @@ export default function DashboardLayout() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Close mobile menu on route change
   useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
   const handleLogout = () => {
@@ -45,13 +46,12 @@ export default function DashboardLayout() {
   ];
 
   const SidebarContent = ({ isMobile = false }) => (
-    <div className="flex flex-col h-full">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Logo */}
       <div style={{
         padding: collapsed && !isMobile ? '16px 12px' : '16px 20px',
-        borderBottom: '1px solid var(--border-default)',
-        display: 'flex',
-        alignItems: 'center',
+        borderBottom: `1px solid var(--sidebar-border)`,
+        display: 'flex', alignItems: 'center',
         justifyContent: collapsed && !isMobile ? 'center' : 'space-between',
         minHeight: 60,
       }}>
@@ -61,15 +61,13 @@ export default function DashboardLayout() {
           <div style={{
             width: 32, height: 32, borderRadius: 10,
             background: 'var(--gradient-primary)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center'
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <Zap size={16} color="white" />
           </div>
         )}
         {isMobile && (
-          <button onClick={() => setMobileOpen(false)} className="btn-icon">
-            <X size={20} />
-          </button>
+          <button onClick={() => setMobileOpen(false)} className="btn-icon"><X size={20} /></button>
         )}
       </div>
 
@@ -78,31 +76,26 @@ export default function DashboardLayout() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {navItems.map((item) => (
             <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
+              key={item.to} to={item.to} end={item.end}
               style={({ isActive }) => ({
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
+                display: 'flex', alignItems: 'center', gap: 12,
                 padding: collapsed && !isMobile ? '10px 0' : '10px 14px',
                 justifyContent: collapsed && !isMobile ? 'center' : 'flex-start',
                 borderRadius: 'var(--radius-md)',
                 fontSize: 13.5,
                 fontWeight: isActive ? 700 : 500,
-                color: isActive ? 'var(--accent-primary-light)' : 'var(--text-muted)',
-                background: isActive ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                color: isActive ? 'var(--accent-primary)' : 'var(--text-muted)',
+                background: isActive ? 'var(--nav-active-bg)' : 'transparent',
                 textDecoration: 'none',
                 transition: 'all var(--transition-fast)',
-                position: 'relative',
               })}
               onMouseEnter={(e) => {
-                if (!e.currentTarget.classList.contains('active'))
-                  e.currentTarget.style.background = 'rgba(99, 102, 241, 0.06)';
+                if (e.currentTarget.getAttribute('aria-current') !== 'page')
+                  e.currentTarget.style.background = 'var(--nav-hover-bg)';
               }}
               onMouseLeave={(e) => {
-                const isActive = e.currentTarget.getAttribute('aria-current') === 'page';
-                if (!isActive) e.currentTarget.style.background = 'transparent';
+                if (e.currentTarget.getAttribute('aria-current') !== 'page')
+                  e.currentTarget.style.background = 'transparent';
               }}
             >
               <item.icon size={18} style={{ flexShrink: 0 }} />
@@ -112,9 +105,29 @@ export default function DashboardLayout() {
         </div>
       </nav>
 
-      {/* Collapse Toggle (desktop only) */}
-      {!isMobile && (
-        <div style={{ padding: '8px', borderTop: '1px solid var(--border-default)' }}>
+      {/* Theme Toggle + Collapse */}
+      <div style={{ padding: '8px', borderTop: `1px solid var(--sidebar-border)` }}>
+        {/* Theme Toggle */}
+        <div style={{
+          display: 'flex', alignItems: 'center',
+          justifyContent: collapsed && !isMobile ? 'center' : 'space-between',
+          padding: collapsed && !isMobile ? '6px 0' : '6px 10px',
+          marginBottom: 4,
+        }}>
+          {(!collapsed || isMobile) && (
+            <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 500 }}>
+              {isDark ? 'Giao diện tối' : 'Giao diện sáng'}
+            </span>
+          )}
+          <button onClick={toggle} className="theme-toggle" title={isDark ? 'Chuyển sang sáng' : 'Chuyển sang tối'}>
+            <div className="theme-toggle-knob">
+              {isDark ? <Moon size={10} color="white" /> : <Sun size={10} color="white" />}
+            </div>
+          </button>
+        </div>
+
+        {/* Collapse Toggle (desktop only) */}
+        {!isMobile && (
           <button
             onClick={() => setCollapsed(!collapsed)}
             className="btn-icon"
@@ -122,29 +135,24 @@ export default function DashboardLayout() {
           >
             {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* User */}
       <div style={{
         padding: collapsed && !isMobile ? '12px 8px' : '12px 16px',
-        borderTop: '1px solid var(--border-default)',
+        borderTop: `1px solid var(--sidebar-border)`,
       }}>
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
+          display: 'flex', alignItems: 'center', gap: 10,
           justifyContent: collapsed && !isMobile ? 'center' : 'flex-start',
           marginBottom: 10,
         }}>
           <img
-            src={user.avatarUrl || AVATAR_DEFAULT}
-            alt=""
+            src={user.avatarUrl || AVATAR_DEFAULT} alt=""
             style={{
-              width: 34, height: 34, borderRadius: 10,
-              objectFit: 'cover',
-              border: '2px solid rgba(99, 102, 241, 0.3)',
-              flexShrink: 0,
+              width: 34, height: 34, borderRadius: 10, objectFit: 'cover',
+              border: '2px solid var(--avatar-border)', flexShrink: 0,
             }}
           />
           {(!collapsed || isMobile) && (
@@ -158,32 +166,13 @@ export default function DashboardLayout() {
             </div>
           )}
         </div>
-        <button
-          onClick={handleLogout}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            width: '100%',
-            padding: '8px 12px',
-            borderRadius: 'var(--radius-md)',
-            border: 'none',
-            background: 'transparent',
-            color: 'var(--text-dim)',
-            cursor: 'pointer',
-            fontSize: 12.5,
-            fontFamily: 'inherit',
-            transition: 'all var(--transition-fast)',
-            justifyContent: collapsed && !isMobile ? 'center' : 'flex-start',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(251, 113, 133, 0.08)';
-            e.currentTarget.style.color = '#fb7185';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.color = 'var(--text-dim)';
-          }}
+        <button onClick={handleLogout} className="btn-icon" style={{
+          width: '100%', gap: 8, fontSize: 12.5, color: 'var(--text-dim)',
+          justifyContent: collapsed && !isMobile ? 'center' : 'flex-start',
+          padding: '8px 12px',
+        }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--badge-bg-danger)'; e.currentTarget.style.color = 'var(--accent-rose)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-dim)'; }}
         >
           <LogOut size={15} />
           {(!collapsed || isMobile) && <span>Đăng xuất</span>}
@@ -196,10 +185,9 @@ export default function DashboardLayout() {
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-primary)' }}>
       {/* Desktop Sidebar */}
       <aside style={{
-        width: collapsed ? 68 : 250,
-        flexShrink: 0,
-        background: 'var(--bg-secondary)',
-        borderRight: '1px solid var(--border-default)',
+        width: collapsed ? 68 : 250, flexShrink: 0,
+        background: 'var(--sidebar-bg)',
+        borderRight: `1px solid var(--sidebar-border)`,
         transition: 'width var(--transition-normal)',
         display: 'none',
       }} className="sidebar-desktop">
@@ -212,40 +200,37 @@ export default function DashboardLayout() {
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 40,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 16px', height: 56,
-        background: 'var(--bg-secondary)',
-        borderBottom: '1px solid var(--border-default)',
+        background: 'var(--sidebar-bg)', borderBottom: `1px solid var(--sidebar-border)`,
       }}>
         <img src={LOGO_FULL} alt="Ai Webinar" style={{ height: 24 }} />
-        <button onClick={() => setMobileOpen(true)} className="btn-icon"><Menu size={22} /></button>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <button onClick={toggle} className="theme-toggle" style={{ transform: 'scale(0.9)' }}>
+            <div className="theme-toggle-knob">
+              {isDark ? <Moon size={9} color="white" /> : <Sun size={9} color="white" />}
+            </div>
+          </button>
+          <button onClick={() => setMobileOpen(true)} className="btn-icon"><Menu size={22} /></button>
+        </div>
       </div>
       <style>{`@media(min-width:1024px){.mobile-header{display:none!important}}`}</style>
 
       {/* Mobile Overlay */}
       {mobileOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex' }}>
-          <div
-            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
-            onClick={() => setMobileOpen(false)}
-          />
-          <aside
-            style={{
-              position: 'relative', width: 280,
-              background: 'var(--bg-secondary)',
-              borderRight: '1px solid var(--border-default)',
-              display: 'flex', flexDirection: 'column',
-            }}
-            className="animate-slideIn"
-          >
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+            onClick={() => setMobileOpen(false)} />
+          <aside style={{
+            position: 'relative', width: 280,
+            background: 'var(--sidebar-bg)', borderRight: `1px solid var(--sidebar-border)`,
+            display: 'flex', flexDirection: 'column',
+          }} className="animate-slideIn">
             <SidebarContent isMobile={true} />
           </aside>
         </div>
       )}
 
       {/* Main Content */}
-      <main style={{
-        flex: 1, overflowY: 'auto', overflowX: 'hidden',
-        paddingTop: '0',
-      }} className="main-content">
+      <main style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }} className="main-content">
         <div style={{ padding: '28px 32px', maxWidth: 1340, margin: '0 auto' }}>
           <Outlet />
         </div>
