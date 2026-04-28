@@ -141,15 +141,25 @@ export default function WebinarRoom() {
     });
   };
 
+  // Smart detect actual video type from URL (handles data mismatches)
+  const detectVideoType = () => {
+    if (!webinar?.video_url) return 'mp4';
+    const url = webinar.video_url;
+    if (url.match(/youtube\.com|youtu\.be/)) return 'youtube';
+    if (url.match(/vimeo\.com/)) return 'vimeo';
+    return webinar.video_type || 'mp4';
+  };
+
   const getVideoSrc = () => {
     if (!webinar) return '';
-    if (webinar.video_type === 'youtube') {
+    const actualType = detectVideoType();
+    if (actualType === 'youtube') {
       const id = webinar.video_url?.match(/(?:v=|\/)([\w-]{11})/)?.[1];
-      return id ? `https://www.youtube.com/embed/${id}?autoplay=1&controls=0&modestbranding=1&rel=0` : '';
+      return id ? `https://www.youtube.com/embed/${id}?autoplay=1&controls=1&modestbranding=1&rel=0` : '';
     }
-    if (webinar.video_type === 'vimeo') {
+    if (actualType === 'vimeo') {
       const id = webinar.video_url?.match(/vimeo\.com\/(\d+)/)?.[1];
-      return id ? `https://player.vimeo.com/video/${id}?autoplay=1&controls=0` : '';
+      return id ? `https://player.vimeo.com/video/${id}?autoplay=1&controls=1` : '';
     }
     return webinar.video_url;
   };
@@ -233,7 +243,7 @@ export default function WebinarRoom() {
         background: '#000',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        {webinar?.video_type === 'mp4' ? (
+        {detectVideoType() === 'mp4' ? (
           <video
             ref={videoRef}
             src={getVideoSrc()}
@@ -248,7 +258,7 @@ export default function WebinarRoom() {
         )}
 
         {/* Play overlay */}
-        {(!playing && webinar?.video_type === 'mp4') && (
+        {(!playing && detectVideoType() === 'mp4') && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)', cursor: 'pointer' }} onClick={handlePlay}>
             <div style={{
               width: 80, height: 80, borderRadius: '50%',
