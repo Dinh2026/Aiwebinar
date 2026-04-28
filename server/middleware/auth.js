@@ -41,6 +41,24 @@ async function tenantMiddleware(req, res, next) {
       const subAccountId = req.headers['x-sub-account-id'];
       if (subAccountId) {
         req.subAccountId = subAccountId;
+      } else {
+        // Tự động tìm hoặc tạo sub-account cho super admin
+        let saResult = await db.query(
+          `SELECT sa.id FROM sub_accounts sa WHERE sa.status = 'active' ORDER BY sa.created_at LIMIT 1`
+        );
+        if (saResult.rows.length === 0) {
+          // Tạo sub-account mặc định cho super admin
+          saResult = await db.query(
+            `INSERT INTO sub_accounts (owner_user_id, name, domain_prefix, plan) 
+             VALUES ($1, 'Default Workspace', 'default', 'pro') RETURNING id`,
+            [req.user.id]
+          );
+          await db.query(
+            `INSERT INTO user_sub_accounts (user_id, sub_account_id, role) VALUES ($1, $2, 'admin') ON CONFLICT DO NOTHING`,
+            [req.user.id, saResult.rows[0].id]
+          );
+        }
+        req.subAccountId = saResult.rows[0].id;
       }
       return next();
     }
